@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Chat Board</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #eef2f7;
+    color: #1f2937;
+    display: flex;
+    justify-content: center;
+    padding: 16px;
+  }
+  .board {
+    width: 100%;
+    max-width: 640px;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 4px 18px rgba(0,0,0,.12);
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 32px);
+    overflow: hidden;
+  }
+  header {
+    background: #2563eb;
+    color: #fff;
+    padding: 14px 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  header h1 { margin: 0; font-size: 1.15rem; }
+  header button {
+    background: rgba(255,255,255,.2);
+    color: #fff;
+    border: 0;
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: .85rem;
+  }
+  header button:hover { background: rgba(255,255,255,.35); }
+  #messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: #f9fafb;
+  }
+  .empty { text-align: center; color: #9ca3af; margin-top: 40px; }
+  .msg {
+    max-width: 80%;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: #e5e7eb;
+    align-self: flex-start;
+    word-wrap: break-word;
+  }
+  .msg.mine {
+    background: #2563eb;
+    color: #fff;
+    align-self: flex-end;
+  }
+  .meta {
+    font-size: .72rem;
+    opacity: .75;
+    margin-bottom: 4px;
+    display: flex;
+    gap: 10px;
+    justify-content: space-between;
+  }
+  .meta button {
+    background: none;
+    border: 0;
+    color: inherit;
+    cursor: pointer;
+    font-size: .72rem;
+    padding: 0;
+    opacity: .8;
+  }
+  .meta button:hover { opacity: 1; text-decoration: underline; }
+  .text { white-space: pre-wrap; line-height: 1.4; }
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    border-top: 1px solid #e5e7eb;
+  }
+  .row { display: flex; gap: 8px; }
+  input, textarea {
+    font: inherit;
+    padding: 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    outline: none;
+  }
+  input:focus, textarea:focus { border-color: #2563eb; }
+  #name { width: 35%; }
+  #text { flex: 1; resize: none; }
+  .send {
+    background: #2563eb;
+    color: #fff;
+    border: 0;
+    padding: 0 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+  }
+  .send:hover { background: #1d4ed8; }
+  .note { font-size: .72rem; color: #6b7280; text-align: center; padding: 0 12px 10px; }
+</style>
+</head>
+<body>
+  <div class="board">
+    <header>
+      <h1>💬 My Chat Board</h1>
+      <button id="clearBtn" type="button">Clear all</button>
+    </header>
+
+    <div id="messages"></div>
+
+    <form id="form">
+      <div class="row">
+        <input id="name" placeholder="Your name" maxlength="20" required>
+        <textarea id="text" rows="2" placeholder="Type a message..." maxlength="300" required></textarea>
+        <button class="send" type="submit">Send</button>
+      </div>
+    </form>
+    <div class="note">Messages are saved only in your own browser.</div>
+  </div>
+
+<script>
+  var KEY = "chatboard_messages";
+  var NAME_KEY = "chatboard_name";
+  var box = document.getElementById("messages");
+  var form = document.getElementById("form");
+  var nameInput = document.getElementById("name");
+  var textInput = document.getElementById("text");
+
+  function load() {
+    try { return JSON.parse(localStorage.getItem(KEY)) || []; }
+    catch (e) { return []; }
+  }
+  function save(list) {
+    try { localStorage.setItem(KEY, JSON.stringify(list)); } catch (e) {}
+  }
+
+  var messages = load();
+  try { nameInput.value = localStorage.getItem(NAME_KEY) || ""; } catch (e) {}
+
+  function render() {
+    box.innerHTML = "";
+    if (messages.length === 0) {
+      var e = document.createElement("div");
+      e.className = "empty";
+      e.textContent = "No messages yet. Send the first one!";
+      box.appendChild(e);
+      return;
+    }
+    var me = nameInput.value.trim();
+    messages.forEach(function (m) {
+      var div = document.createElement("div");
+      div.className = "msg" + (m.name === me ? " mine" : "");
+
+      var meta = document.createElement("div");
+      meta.className = "meta";
+      var who = document.createElement("span");
+      who.textContent = m.name + " • " + m.time;
+      var del = document.createElement("button");
+      del.type = "button";
+      del.textContent = "delete";
+      del.onclick = function () {
+        messages = messages.filter(function (x) { return x.id !== m.id; });
+        save(messages);
+        render();
+      };
+      meta.appendChild(who);
+      meta.appendChild(del);
+
+      var t = document.createElement("div");
+      t.className = "text";
+      t.textContent = m.text;
+
+      div.appendChild(meta);
+      div.appendChild(t);
+      box.appendChild(div);
+    });
+    box.scrollTop = box.scrollHeight;
+  }
+
+  form.addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var name = nameInput.value.trim();
+    var text = textInput.value.trim();
+    if (!name || !text) return;
+    try { localStorage.setItem(NAME_KEY, name); } catch (e) {}
+    messages.push({
+      id: Date.now() + Math.random(),
+      name: name,
+      text: text,
+      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    });
+    save(messages);
+    textInput.value = "";
+    render();
+  });
+
+  textInput.addEventListener("keydown", function (ev) {
+    if (ev.key === "Enter" && !ev.shiftKey) {
+      ev.preventDefault();
+      form.requestSubmit();
+    }
+  });
+
+  document.getElementById("clearBtn").onclick = function () {
+    if (confirm("Delete all messages?")) {
+      messages = [];
+      save(messages);
+      render();
+    }
+  };
+
+  nameInput.addEventListener("input", render);
+  render();
+</script>
+</body>
+</html>
